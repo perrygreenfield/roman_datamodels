@@ -1,7 +1,9 @@
 import asdf
+import pytest
 import yaml
 
 from roman_datamodels import stnode
+from roman_datamodels.testing import assert_node_equal, get_factory_method
 
 
 def test_generated_node_classes():
@@ -37,3 +39,20 @@ def test_wfi_mode():
     assert node.optical_element == "F129"
     assert node.grating is None
     assert node.filter == "F129"
+
+
+@pytest.mark.parametrize("node_class", stnode.NODE_CLASSES)
+def test_serialization(node_class, tmp_path):
+    if node_class.__name__ == "KeywordPixelarea":
+        pytest.xfail("No schema for KeywordPixelarea, see https://github.com/spacetelescope/rad/issues/11")
+
+    file_path = tmp_path / "test.asdf"
+
+    factory_method = get_factory_method(node_class)
+    node = factory_method()
+    with asdf.AsdfFile() as af:
+        af["node"] = node
+        af.write_to(file_path)
+
+    with asdf.open(file_path) as af:
+        assert_node_equal(af["node"], node)
